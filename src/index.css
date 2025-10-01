@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Absurdite";
+  src: url("/fonts/Absurdite.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+html {
+  font-size: calc(100vw / 26);
+  scroll-behavior: smooth;
+}
+
+@font-face {
+  font-family: 'Soyuzmult';
+  src: url('./assets/Soyuzmult 2.otf') format('opentype');
+}
+
+* {
+  font-family: "Nunito", sans-serif;
+}
+
+h1, h2 {
+  font-family: 'Soyuzmult', sans-serif;
+}
+
+h1{
+  font-size: 4rem;
+}
+
+h2{
+  font-size: 2.5rem;
+  line-height: 2.3rem;
+}
