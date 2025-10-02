@@ -26,7 +26,7 @@ import WebARRocksThreeStabilizer from './WebARRocksThreeStabilizer.js';
 import DeviceOrientationHelper from './DeviceOrientationHelper.js';
 
 // import main script:
-import WEBARROCKSOBJECT from '/src/helpers/WebARRocksObject/dist/WebARRocksObject.module.js';
+import WEBARROCKSOBJECT from '../../../WebARRocksObject.js';
 
 /*
  spec properties:

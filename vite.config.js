@@ -10,6 +10,16 @@ export default defineConfig({
     tailwindcss(),
     basicSsl() // Добавляем плагин для генерации self-signed SSL сертификата
   ],
+  resolve: {
+    alias: {
+      '@': '/src'
+    }
+  },
+  build: {
+    rollupOptions: {
+      external: []
+    }
+  },
   server: {
     https: true, // Включаем HTTPS
     host: '0.0.0.0', // Делаем сервер доступным извне
