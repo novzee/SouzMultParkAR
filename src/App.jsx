@@ -4,7 +4,6 @@ import ARPhoto from './pages/ARPhoto';
 import Minigames from './pages/Minigames';
 import ShapokRat from './pages/ShapokRat';
 import ARGena from './pages/ARGena';
-import ARShapok from './pages/ARShapok';
 import ARPogod from './pages/ARPogod';
 
 function App() {
@@ -16,7 +15,6 @@ function App() {
       <Route path="/shapok" element={<ShapokRat />} />
       <Route path='/gena' element={<ARGena />} />
       <Route path="*" element={<Home />} />
-      <Route path='shapka' element={<ARShapok />} />  
       <Route path='/nupogodi' element={<ARPogod />} />
     </Routes>
   );

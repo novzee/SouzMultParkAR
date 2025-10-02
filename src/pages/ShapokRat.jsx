@@ -66,7 +66,7 @@ const ShapokRat = () => {
     renderer.setPixelRatio(window.devicePixelRatio || 1);
     renderer.setSize(video.videoWidth, video.videoHeight);
     renderer.setClearColor(0x000000, 0);
-    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     threeRendererRef.current = renderer;
