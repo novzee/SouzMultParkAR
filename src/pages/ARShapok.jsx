@@ -327,10 +327,7 @@ const ARShapok = () => {
     // Показываем уведомление об успехе
     setShowSaveSuccess(true)
     completePhotoTask();
-    setTimeout(() => {
-      setShowSaveSuccess(false)
-      setCapturedImage(null)
-    }, 2000)
+    // Removed auto-close to allow user to read and manually close the modal
   }
 
   const commonStyle = {
