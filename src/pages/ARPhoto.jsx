@@ -7,10 +7,10 @@ import ShapoklyakPhoto from '../assets/shapok.jpg';
 
 const ARPhoto = () => {
   const sculptures = [
-    { id: 'cheburashka', name: 'Скульптура Чебурашка', image: CheburashkaPhoto, disabled: true },
-    { id: 'gena', name: 'Скульптура Крокодил Гена', image: GenaPhoto, disabled: true },
-    { id: 'wolf', name: 'Скульптура Волк', image: WolfPhoto, disabled: false },
-    { id: 'shapoklyak', name: 'Скульптура Шапокляк', image: ShapoklyakPhoto, disabled: true },
+    { id: 'chebu', name: 'Скульптура Чебурашка', image: CheburashkaPhoto, disabled: true },
+    { id: 'gena', name: 'Скульптура Крокодил Гена', image: GenaPhoto, disabled: false },
+    { id: 'nupogodi', name: 'Скульптура Волк', image: WolfPhoto, disabled: true },
+    { id: 'shapka', name: 'Скульптура Шапокляк', image: ShapoklyakPhoto, disabled: false },
   ];
 
   const [selectedId, setSelectedId] = useState(null);
@@ -22,7 +22,7 @@ const ARPhoto = () => {
 
   const handleGoClick = () => {
     if (selectedId) {
-      navigate(`/ar-scene/${selectedId}`);
+      navigate(`/${selectedId}`);
     }
   };
 
