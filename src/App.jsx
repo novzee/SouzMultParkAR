@@ -20,7 +20,7 @@ function App() {
       <Route path='/gena' element={<ARGena />} />
       <Route path='/nupogodi' element={<ARPogod />} />
       <Route path="/gena-info" element={<GenaInfo />} />
-      <Route path="/shapoklyak-info" element={<ShapoklyakInfo />} />
+      <Route path="/shapok-info" element={<ShapoklyakInfo />} />
       <Route path="/ticket" element={<TicketPage />} />
       <Route path="/wolf-and-eggs" element={<WolfAndEggs />} />
       <Route path="*" element={<Home />} />
