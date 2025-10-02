@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import MainPhoto from '../assets/main.png';
 import PurpleArrow from '../assets/PurpleArr.svg'
 import GreenArrow from '../assets/GreenArr.svg'
+import PromoCircle from '../components/PromoCircle';
+import PromoModal from '../components/PromoModal';
+import '../components/PromoCircle.css';
+import '../components/PromoModal.css';
 
 const Home = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
     <div className='relative bg-gray-100 min-h-screen max-w-screen overflow-x-hidden'>
       <header className="bg-white border-b border-gray-100 shadow-sm">
@@ -58,7 +64,7 @@ const Home = () => {
               Поиграй в увлекательные мини-игры
             </h2>
           </div>
-          <img src={MainPhoto} alt="Оживи Героя" classNam="w-full" />
+          <img src={MainPhoto} alt="Оживи Героя" className="w-full" />
         </section>
 
         <article className="bg-white rounded-[2rem] shadow-lg border border-gray-100 p-8 md:p-12 text-center lg:text-left flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -90,6 +96,9 @@ const Home = () => {
           </span>
         </article>
       </main>
+
+      <PromoCircle onClick={() => setIsModalOpen(true)} />
+      {isModalOpen && <PromoModal onClose={() => setIsModalOpen(false)} />}
     </div>
   );
 };

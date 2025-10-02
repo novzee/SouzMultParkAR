@@ -1,0 +1,100 @@
+.promo-circle-container {
+  position: fixed;
+  bottom: 120px; /* Поднимаем выше, чтобы не перекрывать кнопки навигации */
+  left: 20px;
+  z-index: 1000;
+  cursor: pointer;
+}
+
+.promo-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6acc, #fe6acc);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  box-shadow: 0 8px 20px #ff6acc, 0 4px 10px rgba(0,0,0,0.2);
+  transition: transform 0.3s ease;
+  overflow: visible;
+}
+
+/* Outer glow effect */
+.promo-circle::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
+  z-index: -1;
+  filter: blur(8px);
+}
+.promo-circle:hover {
+  transform: scale(1.2);
+}
+
+.promo-circle-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+}
+
+.promo-ticket-icon {
+  width: 40px;
+  height: auto;
+  margin-bottom: 5px;
+}
+
+.promo-discount {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.promo-text {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  animation: rotate 10s linear infinite;
+  pointer-events: none;
+}
+
+.promo-text-svg {
+  width: 100%;
+  height: 100%;
+  fill: white;
+  font-size: 15px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.promo-text .char1 { transform: rotate(0deg) translate(50px) rotate(-0deg); }
+.promo-text .char2 { transform: rotate(24deg) translate(50px) rotate(-24deg); }
+.promo-text .char3 { transform: rotate(48deg) translate(50px) rotate(-48deg); }
+.promo-text .char4 { transform: rotate(72deg) translate(50px) rotate(-72deg); }
+.promo-text .char5 { transform: rotate(96deg) translate(50px) rotate(-96deg); }
+.promo-text .char6 { transform: rotate(120deg) translate(50px) rotate(-120deg); }
+.promo-text .char7 { transform: rotate(144deg) translate(50px) rotate(-144deg); }
+.promo-text .char8 { transform: rotate(168deg) translate(50px) rotate(-168deg); }
+.promo-text .char9 { transform: rotate(192deg) translate(50px) rotate(-192deg); }
+.promo-text .char10 { transform: rotate(216deg) translate(50px) rotate(-216deg); }
+.promo-text .char11 { transform: rotate(240deg) translate(50px) rotate(-240deg); }
+.promo-text .char12 { transform: rotate(264deg) translate(50px) rotate(-264deg); }
+.promo-text .char13 { transform: rotate(288deg) translate(50px) rotate(-288deg); }
+.promo-text .char14 { transform: rotate(312deg) translate(50px) rotate(-312deg); }
+.promo-text .char15 { transform: rotate(336deg) translate(50px) rotate(-336deg); }
+
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

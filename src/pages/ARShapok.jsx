@@ -1,591 +1,392 @@
-import React, { useState, useEffect, useRef } from 'react'import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { usePromo } from '../context/PromoContext'
 
-import { Canvas, useFrame, useThree } from '@react-three/fiber'import { Canvas, useFrame, useThree } from '@react-three/fiber'
+// import main helper:
+import threeHelper from '../helpers/WebARRocksObject/helpers/WebARRocksObjectThreeHelper.js'
 
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+// import mediaStream API helper:
+import mediaStreamAPIHelper from '../helpers/WebARRocksObject/helpers/WebARRocksMediaStreamAPIHelper.js'
 
+// import neural network model for SHAPOK detection:
+import NN from '../assets/NN_SHAPOK_0.json'
 
+import { Link } from 'react-router-dom'
 
-// import main helper:// import main helper:
+import BackButton from '../components/BackButton'
+import DetectionStatus from '../components/DetectionStatus'
+import DetectionIndicator from '../components/DetectionIndicator'
 
-import threeHelper from '../helpers/WebARRocksObject/helpers/WebARRocksObjectThreeHelper.js'import threeHelper from '../helpers/WebARRocksObject/helpers/WebARRocksObjectThreeHelper.js'
+let _threeFiber = null
 
+// Component for 3D model following the detected SHAPOK object
+const ShapokFollower = ({ onDetect, onLose }) => {
+  // This reference will give us direct access to the mesh
+  const objRef = useRef()
 
-
-// import mediaStream API helper:// import mediaStream API helper:
-
-import mediaStreamAPIHelper from '../helpers/WebARRocksObject/helpers/WebARRocksMediaStreamAPIHelper.js'import mediaStreamAPIHelper from '../helpers/WebARRocksObject/helpers/WebARRocksMediaStreamAPIHelper.js'
-
-
-
-// import neural network model for SHAPOK detection:// import neural network model for SHAPKA detection:
-
-import NN from '../assets/NN_SHAPOK_0.json'import NN from '../assets/NN_SHAPOK_0.json'
-
-
-
-import { Link } from 'react-router-dom'import { Link } from 'react-router-dom'
-
-
-
-let _threeFiber = nulllet _threeFiber = null
-
-
-
-// Component for 3D model following the detected SHAPOK object// Component for 3D model following the detected SHAPKA object
-
-const ShapokFollower = ({ onDetect, onLose }) => {const ShapkaFollower = ({ onDetect, onLose }) => {
-
-  // This reference will give us direct access to the mesh  // This reference will give us direct access to the mesh
-
-  const objRef = useRef()  const objRef = useRef()
-
-
-
-  useEffect(() => {  useEffect(() => {
-
-    const threeObject3D = objRef.current    const threeObject3D = objRef.current
-
+  useEffect(() => {
+    const threeObject3D = objRef.current
     
-
-    if (!threeObject3D) {    // Load the SHAPKA 3D model
-
-      console.error('threeObject3D не найден')    const loader = new GLTFLoader()
-
-      return    loader.load('/rat.glb', (gltf) => {
-
-    }      const model = gltf.scene
-
-      model.scale.set(0.2, 0.2, 0.2) // Уменьшил масштаб 3D модели с 0.5 до 0.2
-
-    console.log('Начинаем загрузку GLB модели...')      model.rotation.y = -Math.PI / 2 // Поворот на 90 градусов влево (по оси Y)
-
-          threeObject3D.children[0].add(model)
-
-    // Load the SHAPOK 3D model    })
-
-    const loader = new GLTFLoader()
-
-    loader.load(    // make the parent object as a SHAPKA follower:
-
-      '/rat.glb',    threeHelper.set_objectFollower('SHAPKA', threeObject3D)
-
-      (gltf) => {
-
-        console.log('GLB модель загружена успешно:', gltf)    // set callbacks for detection and tracking:
-
-        const model = gltf.scene    threeHelper.set_callback('SHAPKA', 'ondetect', function(){
-
-              if (onDetect){
-
-        // Проверяем, что модель не пустая        onDetect()
-
-        if (model.children.length === 0) {      }
-
-          console.warn('GLB модель пустая или не содержит геометрии')      console.log('SHAPKA detected!')
-
-        }    })
-
-            
-
-        model.scale.set(0.5, 0.5, 0.5) // Увеличил масштаб для лучшей видимости    threeHelper.set_callback('SHAPKA', 'onloose', function(){
-
-        model.rotation.y = -Math.PI / 2 // Поворот на 90 градусов влево (по ��си Y)      console.log('SHAPKA tracking lost')
-
-        model.position.set(0, 0, 0) // Убеждаемся что модель в центре      if (onLose){
-
-                onLose()
-
-        // Добавляем модель к объекту      }
-
-        threeObject3D.add(model)    })
-
-        console.log('Модель добавлена к сцене')  }, [onDetect, onLose])
-
-      },
-
-      (progress) => {  const s = 0.8 // scale multiplier - уменьшил размер модели
-
-        console.log('Прогресс загрузки GLB:', (progress.loaded / progress.total * 100) + '%')  
-
-      },  return (
-
-      (error) => {    <object3D ref={objRef}>
-
-        console.error('Ошибка при загрузке GLB модели:', error)      <object3D scale={[s, s, s]} position={[0.0, 0.0, 0.0]} rotation={[0, -Math.PI/2, 0]}>
-
-      }        {/* 3D модель GLB будет добавлена сюда через GLTFLoader */}
-
-    )      </object3D>
-
-    </object3D>
-
-    // Register the object for detection:  )
-
-    threeHelper.addDetectedObject(threeObject3D, onDetect, onLose)}
-
-
-
-    return () => {// Component to grab Three.js context and handle rendering loop
-
-      // Очищаем при размонтированииconst ThreeGrabber = (props) => {
-
-      if (threeObject3D && threeObject3D.parent) {  const threeFiber = useThree()
-
-        threeObject3D.parent.remove(threeObject3D)  _threeFiber = threeFiber
-
-      }  
-
-    }  useFrame(() => {
-
-  }, [onDetect, onLose])    // Update camera and poses in each frame
-
-    threeHelper.update_threeCamera(props.sizing, threeFiber.camera)
-
-  return (    threeHelper.update_poses(threeFiber.camera)
-
-    <object3D ref={objRef} />  })
-
-  )  
-
-}  return null
-
-}
-
-// Component for the main canvas
-
-const ARCanvas = ({ onDetect, onLose }) => {const compute_sizing = () => {
-
-  useEffect(() => {  // compute size of the canvas:
-
-    const { camera, gl, scene } = _threeFiber  const height = window.innerHeight
-
-      const width = window.innerWidth
-
-    // Initialize three.js helper  
-
-    threeHelper.init({  // compute position of the canvas:
-
-      threejsCanvasId: 'ARCanvas',  const top = 0
-
-      callbackReady: (error, spec) => {  const left = 0
-
-        if (error) {  return {width, height, top, left}
-
-          console.error('Ошибка инициализации WebAR.rocks Object:', error)}
-
-          return
-
-        }const ARShapok = () => {
-
-        console.log('WebAR.rocks Object инициализировано:', spec)  // init state:
-
-        console.log('INFO in callbackReady: WebAR.rocks Object library готова')  const [sizing, setSizing] = useState(compute_sizing())
-
-          const [isFirstDetection, setIsFirstDetection] = useState(true)
-
-        // Start the detection loop  const [isInitialized] = useState(true)
-
-        threeHelper.start()  const [isDetecting, setIsDetecting] = useState(false)
-
-      },
-
-      isDebugRender: false,  // refs: 
-
-      NNPath: '../helpers/WebARRocksObject/neuralNets/',  const canvasComputeRef = useRef()
-
-      objectLabels: ['shapok'],  const cameraVideoRef = useRef()
-
-      NN: NN,
-
-      followZRot: true,  const _settings = {
-
-      nDetectsPerLoop: 1,    nDetectsPerLoop: 0, // 0 -> adaptive
-
-      detectZoom: 1,
-
-      callbackTrack: (detectStates) => {    loadNNOptions: {
-
-        // Этот callback вызывается на каждом кадре с состоянием детекции      notHereFactor: 0.0,
-
-        // detectStates - массив с информацией об обнаруженных объектах      paramsPerLabel: {
-
-        detectStates.forEach((detectState, index) => {        SHAPKA: {
-
-          if (detectState.detected > 0.5) {          thresholdDetect: 0.85 // Detection threshold for SHAPKA object
-
-            if (onDetect) {        }
-
-              onDetect(index, detectState)      }
-
-            }    },
-
-          } else {
-
-            if (onLose) {    detectOptions: {
-
-              onLose(index)      isKeepTracking: true,
-
-            }      isSkipConfirmation: false,
-
-          }      thresholdDetectFactor: 1,
-
-        })      cutShader: 'median',
-
-      }      thresholdDetectFactorUnstitch: 0.2,
-
-    })      trackingFactors: [0.5, 0.4, 1.5]
-
-    },
-
-    return () => {
-
-      // Очистка при размонтировании    cameraFov: 0, // auto evaluation
-
-      if (threeHelper && threeHelper.destroy) {
-
-        threeHelper.destroy()    scanSettings: {
-
-      }      nScaleLevels: 2,
-
-    }      scale0Factor: 0.8,
-
-  }, [onDetect, onLose])      overlapFactors: [2, 2, 2], // between 0 (max overlap) and 1 (no overlap). Along X,Y,S
-
-      scanCenterFirst: true
-
-  return null    },
-
-}
-
-    followZRot: true
-
-// Hook to store the Three.js fiber context  }
-
-const useThreeStore = () => {  
-
-  const threeContext = useThree()  let _timerResize = null
-
-  
-
-  useEffect(() => {  const handle_resize = () => {
-
-    _threeFiber = threeContext    // do not resize too often:
-
-  }, [threeContext])    if (_timerResize){
-
-        clearTimeout(_timerResize)
-
-  return null    }
-
-}    _timerResize = setTimeout(do_resize, 200)
-
-  }
-
-// Main AR component
-
-const ARShapok = () => {  const do_resize = () => {
-
-  const canvasRef = useRef(null)    _timerResize = null
-
-  const [isDetected, setIsDetected] = useState(false)    const newSizing = compute_sizing()
-
-  const [isInitialized, setIsInitialized] = useState(false)    setSizing(newSizing)
-
-  const [error, setError] = useState(null)  }
-
-
-
-  // Handle object detection  useEffect(() => {
-
-  const handleDetect = (index, detectState) => {    if (!_timerResize && _threeFiber && _threeFiber.gl){
-
-    if (!isDetected) {      _threeFiber.gl.setSize(sizing.width, sizing.height, true)
-
-      console.log(`Шапка обнаружена! Индекс: ${index}, уверенность: ${detectState.detected}`)    }
-
-      setIsDetected(true)  }, [sizing, _timerResize])
-
+    if (!threeObject3D) {
+      console.error('threeObject3D не найден')
+      return
     }
 
-  }  useEffect(() => {
+    // Скрываем объект по умолчанию
+    threeObject3D.visible = false
 
-    // Store refs in variables to avoid issues in cleanup
+    console.log('Начинаем загрузку GLB модели...')
 
-  // Handle object loss    const videoElement = cameraVideoRef.current
-
-  const handleLose = (index) => {    const canvasElement = canvasComputeRef.current
-
-    if (isDetected) {
-
-      console.log(`Шапка потеряна! Индекс: ${index}`)    // when videofeed is got, init WebAR.rocks.object through the threeHelper:
-
-      setIsDetected(false)    const onCameraVideoFeedGot = () => {
-
-    }      // Ensure canvas is properly initialized
-
-  }      if (!canvasElement) {
-
-        console.error('Canvas element not found!')
-
-  // Initialize camera and mediaStream        return
-
-  useEffect(() => {      }
-
-    const initializeAR = async () => {
-
-      try {      // Set canvas dimensions
-
-        console.log('Инициализация AR...')      canvasElement.width = 512
-
-              canvasElement.height = 512
-
-        // Get mediaStream (camera)
-
-        const mediaStream = await mediaStreamAPIHelper.get('video', {      try {
-
-          video: {        // Validate that NN data is loaded correctly
-
-            facingMode: { ideal: 'environment' }, // Используем заднюю камеру        if (!NN || Object.keys(NN).length === 0) {
-
-            width: { ideal: 640 },          console.error('Neural Network model not loaded correctly')
-
-            height: { ideal: 480 }          return
-
-          }        }
-
-        })
-
-        console.log('Initializing WebAR.rocks.object with SHAPKA detection...')
-
-        console.log('MediaStream получен:', mediaStream)        
-
-        setIsInitialized(true)        threeHelper.init({
-
-                  video: videoElement,
-
-      } catch (err) {          ARCanvas: canvasElement,
-
-        console.error('Ошибка инициализации AR:', err)          NN,
-
-        setError(err.message)          sizing,
-
-      }          callbackReady: () => {
-
-    }            console.log('WebAR.rocks.object is ready for SHAPKA detection!')
-
-            // handle resizing / orientation change:
-
-    initializeAR()            window.addEventListener('resize', handle_resize)
-
-            window.addEventListener('orientationchange', handle_resize)
-
-    return () => {          },
-
-      // Cleanup          callbackTrack: (detectState) => {
-
-      if (mediaStreamAPIHelper && mediaStreamAPIHelper.destroy) {            // Handle tracking state updates
-
-        mediaStreamAPIHelper.destroy()            if (detectState && detectState.detected) {
-
-      }              console.log('SHAPKA tracking active:', detectState)
-
-    }            }
-
-  }, [])          },
-
-          loadNNOptions: _settings.loadNNOptions,
-
-  if (error) {          nDetectsPerLoop: _settings.nDetectsPerLoop,
-
-    return (          detectOptions: _settings.detectOptions,
-
-      <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4">          cameraFov: _settings.cameraFov,
-
-        <h2 className="text-xl font-bold mb-4">Ошибка AR</h2>          followZRot: _settings.followZRot,
-
-        <p className="text-center mb-4">{error}</p>          scanSettings: _settings.scanSettings,
-
-        <Link           stabilizerOptions: {n: 3}
-
-          to="/"         })
-
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"      } catch (error) {
-
-        >        console.error('Error initializing WebAR.rocks.object:', error)
-
-          Вернуться на главную        console.error('Error details:', error.message, error.stack)
-
-        </Link>      }
-
-      </div>    }
-
+    // Load the SHAPOK 3D model
+    const loader = new GLTFLoader()
+    loader.load(
+      '/rat.glb',
+      (gltf) => {
+        console.log('GLB модель загружена успешно:', gltf)
+        const model = gltf.scene
+        
+        // Проверяем, что модель не пустая
+        if (model.children.length === 0) {
+          console.warn('GLB модель пустая или не содержит геометрии')
+        }
+        
+        model.scale.set(0.1, 0.1, 0.1) // Уменьшил в два раза
+        model.rotation.y = -Math.PI / 2 
+        model.position.set(-0.2, -0.5, 0) // Ещё правее
+        
+        // Добавляем модель к объекту
+        threeObject3D.add(model)
+        console.log('Модель добавлена к сцене. Детей в контейнере:', threeObject3D.children.length)
+      },
+      undefined, // onProgress не используется
+      (error) => {
+        console.error('Ошибка загрузки GLB модели:', error)
+        console.error('Проверьте, что файл /rat.glb существует в папке public/')
+      }
     )
 
-  }    // get videoFeed:
+    // make the parent object as a SHAPKA follower:
+    threeHelper.set_objectFollower('SHAPKA', threeObject3D)
 
-    if (videoElement) {
+    // set callbacks for detection and tracking:
+    threeHelper.set_callback('SHAPKA', 'ondetect', function(){
+      threeObject3D.visible = true
+      if (onDetect){
+        onDetect()
+      }
+      console.log('SHAPKA detected!')
+    })
+    
+    threeHelper.set_callback('SHAPKA', 'onloose', function(){
+      threeObject3D.visible = false
+      console.log('SHAPKA tracking lost')
+      if (onLose){
+        onLose()
+      }
+    })
+  }, [onDetect, onLose])
 
-  if (!isInitialized) {      mediaStreamAPIHelper.get(videoElement, onCameraVideoFeedGot, (err) => {
+  const s = 1.0 // scale multiplier - нормальный размер
+  
+  return (
+    <object3D ref={objRef} scale={[s, s, s]} position={[0.0, -1.0, 0.0]} rotation={[0, 0, 0]}>
+      {/* 3D модель GLB будет добавлена сюда через GLTFLoader */}
+    </object3D>
+  )
+}
 
-    return (        console.error('Cannot get video feed', err)
+// Component to grab Three.js context and handle rendering loop
+const ThreeGrabber = (props) => {
+  const threeFiber = useThree()
+  _threeFiber = threeFiber
+  
+  useFrame(() => {
+    // Update camera and poses in each frame
+    threeHelper.update_threeCamera(props.sizing, threeFiber.camera)
+    threeHelper.update_poses(threeFiber.camera)
+  })
+  
+  return null
+}
 
-      <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">      }, {
+const compute_sizing = () => {
+  // compute size of the canvas:
+  const height = window.innerHeight
+  const width = window.innerWidth
+  
+  // compute position of the canvas:
+  const top = 0
+  const left = 0
+  return {width, height, top, left}
+}
 
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mb-4"></div>        video: { 
+const ARShapok = () => {
+  // init state:
+  const { completePhotoTask } = usePromo();
+  const [sizing, setSizing] = useState(compute_sizing())
+  const [isFirstDetection, setIsFirstDetection] = useState(true)
+  const [isInitialized] = useState(true)
+  const [isDetecting, setIsDetecting] = useState(false)
+  const [capturedImage, setCapturedImage] = useState(null)
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false)
+  
+  // refs: 
+  const canvasComputeRef = useRef()
+  const cameraVideoRef = useRef()
 
-        <p>Инициализация AR шапки...</p>          facingMode: {ideal: 'environment'}
+  const _settings = {
+    nDetectsPerLoop: 0, // 0 -> adaptive
 
-        <p className="text-sm mt-2">Разрешите доступ к камере</p>        },
+    loadNNOptions: {
+      notHereFactor: 0.0,
+      paramsPerLabel: {
+        SHAPKA: {
+          thresholdDetect: 0.85 // Detection threshold for SHAPKA object
+        }
+      }
+    },
 
-      </div>        audio: false
+    detectOptions: {
+      isKeepTracking: true,
+      isSkipConfirmation: false,
+      thresholdDetectFactor: 1,
+      cutShader: 'median',
+      thresholdDetectFactorUnstitch: 0.2,
+      trackingFactors: [0.5, 0.4, 1.5]
+    },
 
-    )      })
+    cameraFov: 0, // auto evaluation
 
-  }    }
+    scanSettings: {
+      nScaleLevels: 2,
+      scale0Factor: 0.8,
+      overlapFactors: [2, 2, 2], // between 0 (max overlap) and 1 (no overlap). Along X,Y,S
+      scanCenterFirst: true
+    },
 
+    followZRot: true
+  }
+  
+  let _timerResize = null
 
-
-  return (    return () => {
-
-    <div className="relative w-full h-screen overflow-hidden bg-black">      // Cleanup function
-
-      {/* AR Canvas */}      try {
-
-      <Canvas        window.removeEventListener('resize', handle_resize)
-
-        ref={canvasRef}        window.removeEventListener('orientationchange', handle_resize)
-
-        id="ARCanvas"        
-
-        className="absolute inset-0 w-full h-full"        // Clean up video stream
-
-        camera={{         if (videoElement && videoElement.srcObject) {
-
-          position: [0, 0, 0],           const stream = videoElement.srcObject
-
-          fov: 75,          const tracks = stream.getTracks()
-
-          near: 0.1,          tracks.forEach(track => track.stop())
-
-          far: 1000         }
-
-        }}        
-
-        gl={{         // Destroy WebAR.rocks instance
-
-          preserveDrawingBuffer: true,        if (threeHelper && threeHelper.destroy) {
-
-          alpha: true,          threeHelper.destroy()
-
-          antialias: true         }
-
-        }}      } catch (error) {
-
-      >        console.error('Error during cleanup:', error)
-
-        <UseThreeStore />      }
-
-        <ARCanvas onDetect={handleDetect} onLose={handleLose} />    }
-
-        <ShapokFollower onDetect={handleDetect} onLose={handleLose} />    // eslint-disable-next-line react-hooks/exhaustive-deps
-
-          }, [isInitialized])
-
-        {/* Basic lighting */}
-
-        <ambientLight intensity={0.6} />  const handleDetection = () => {
-
-        <directionalLight position={[10, 10, 5]} intensity={0.8} />    setIsFirstDetection(false)
-
-      </Canvas>    setIsDetecting(true)
-
+  const handle_resize = () => {
+    // do not resize too often:
+    if (_timerResize){
+      clearTimeout(_timerResize)
+    }
+    _timerResize = setTimeout(do_resize, 200)
   }
 
-      {/* UI Overlay */}
+  const do_resize = () => {
+    _timerResize = null
+    const newSizing = compute_sizing()
+    setSizing(newSizing)
+  }
 
-      <div className="absolute inset-0 pointer-events-none">  const handleLoseTracking = () => {
+  useEffect(() => {
+    if (!_timerResize && _threeFiber && _threeFiber.gl){
+      _threeFiber.gl.setSize(sizing.width, sizing.height, true)
+    }
+  }, [sizing, _timerResize])
 
-        {/* Detection status */}    setIsDetecting(false)
+  useEffect(() => {
+    // init WEBAR.rocks.object:
+    const videoElement = cameraVideoRef.current
+    const canvasComputeElement = canvasComputeRef.current
+    if (isInitialized && videoElement && canvasComputeElement){
+      const onCameraVideoFeedGot = () => {
+        // handle resizing / orientation change:
+        window.addEventListener('resize', handle_resize)
+        window.addEventListener('orientationchange', handle_resize)
+        
+        threeHelper.init({
+          video: videoElement,
+          ARCanvas: canvasComputeElement,
+          NN,
+          sizing,
+          callbackReady: () => {
+            console.log('WebAR.rocks.object is ready :)')
+            do_resize()
+          },
+          callbackTrack: (detectState) => {
+            if (detectState.isDetected){
+              // console.log('SHAPKA tracking state = ', detectState)
+            }
+          },
+          loadNNOptions: _settings.loadNNOptions,
+          nDetectsPerLoop: _settings.nDetectsPerLoop,
+          detectOptions: _settings.detectOptions,
+          cameraFov: _settings.cameraFov,
+          followZRot: _settings.followZRot,
+          scanSettings: _settings.scanSettings,
+          stabilizerOptions: {n: 3}
+        })
+      }
 
-        <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-2 rounded-lg">  }
+      // get videoFeed:
+      mediaStreamAPIHelper.get(videoElement, onCameraVideoFeedGot, (err) => {
+        console.error('Cannot get video feed', err)
+      }, {
+        video: { 
+          facingMode: {ideal: 'environment'}
+        },
+        audio: false
+      })
+    }
 
-          <div className="flex items-center gap-2">
+    return () => {
+      // clean up
+      try {
+        window.removeEventListener('resize', handle_resize)
+        window.removeEventListener('orientationchange', handle_resize)
+        threeHelper.destroy()
+      } catch(e){
+        console.log('ERROR in cleanup:', e)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialized])
 
-            <div className={`w-3 h-3 rounded-full ${isDetected ? 'bg-green-500' : 'bg-red-500'}`}></div>  const commonStyle = {
+  const handleDetection = () => {
+    setIsFirstDetection(false)
+    setIsDetecting(true)
+  }
 
-            <span className="text-sm">    left: '50%',
+  const handleLoseTracking = () => {
+    setIsDetecting(false)
+  }
 
-              {isDetected ? 'Шапка найдена!' : 'Ищем шапку...'}    minHeight: '100vh',
+  // Функция для захвата фото
+  const handleTakePhoto = () => {
+    if (!_threeFiber || !_threeFiber.gl || !cameraVideoRef.current) return
 
-            </span>    minWidth: '100vw',
+    const video = cameraVideoRef.current
+    const threeCanvas = _threeFiber.gl.domElement
 
-          </div>    position: 'fixed',
+    // Создаем временный canvas с размерами видимой области
+    const tempCanvas = document.createElement('canvas')
+    const displayWidth = threeCanvas.clientWidth
+    const displayHeight = threeCanvas.clientHeight
+    tempCanvas.width = displayWidth
+    tempCanvas.height = displayHeight
 
-        </div>    top: '50%',
+    const ctx = tempCanvas.getContext('2d')
 
+    // Рассчитываем 'object-fit: cover' для видео
+    const videoAspectRatio = video.videoWidth / video.videoHeight
+    const canvasAspectRatio = displayWidth / displayHeight
+    let renderWidth, renderHeight, x, y
+
+    if (videoAspectRatio > canvasAspectRatio) {
+      renderHeight = displayHeight
+      renderWidth = displayHeight * videoAspectRatio
+      x = (displayWidth - renderWidth) / 2
+      y = 0
+    } else {
+      renderWidth = displayWidth
+      renderHeight = displayWidth / videoAspectRatio
+      x = 0
+      y = (displayHeight - renderHeight) / 2
+    }
+
+    // 1. Рисуем видео фон с сохранением пропорций
+    ctx.drawImage(video, x, y, renderWidth, renderHeight)
+
+    // 2. Рисуем 3D сцену поверх
+    ctx.drawImage(threeCanvas, 0, 0, displayWidth, displayHeight)
+
+    // Получаем результат
+    const dataURL = tempCanvas.toDataURL('image/png')
+    setCapturedImage(dataURL)
+  }
+
+  // Функция для сохранения фото
+  const handleSavePhoto = () => {
+    if (!capturedImage) return
+
+    // Создаем имя файла с датой
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const seconds = String(now.getSeconds()).padStart(2, '0')
+    
+    const filename = `souzmultpark.ru-${day}.${month}.${year}-${hours}:${minutes}:${seconds}.png`
+
+    // Создаем ссылку для скачивания
+    const link = document.createElement('a')
+    link.href = capturedImage
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    // Показываем уведомление об успехе
+    setShowSaveSuccess(true)
+    completePhotoTask();
+    setTimeout(() => {
+      setShowSaveSuccess(false)
+      setCapturedImage(null)
+    }, 2000)
+  }
+
+  const commonStyle = {
+    left: '50%',
+    minHeight: '100vh',
+    minWidth: '100vw',
+    position: 'fixed',
+    top: '50%',
     transform: 'translate(-50%, -50%)'      
+  }
 
-        {/* Instructions */}  }
-
-        <div className="absolute bottom-20 left-4 right-4 bg-black/70 text-white p-4 rounded-lg">
-
-          <h3 className="font-bold mb-2">Инструкция:</h3>  const cameraVideoStyle = {
-
-          <p className="text-sm">    zIndex: 1,
-
-            Наведите камеру на шапку из мультфильма "Ну, погоди!"     top: 0,
-
-            для появления 3D персонажа    left: 0,
-
-          </p>    position: 'fixed',
-
-        </div>    objectFit: 'cover',
-
+  const cameraVideoStyle = {
+    zIndex: 1,
+    top: 0,
+    left: 0,
+    position: 'fixed',
+    objectFit: 'cover',
     width: '100vw',
+    height: '100%'
+  }
 
-        {/* Back button */}    height: '100%'
-
-        <Link   }
-
-          to="/" 
-
-          className="absolute top-4 right-4 pointer-events-auto px-4 py-2 bg-blue-600/80 hover:bg-blue-700/90 text-white rounded-lg transition-colors"  return (
-
-        >    <div>
-
-          Назад      {/* Canvas managed by three fiber, for AR: */}
-
-        </Link>      <Canvas 
-
-      </div>        style={Object.assign({
-
-    </div>          zIndex: 10,
-
-  )          width: sizing.width,
-
-}          height: sizing.height
-
+  return (
+    <div>
+      {/* Canvas managed by three fiber, for AR: */}
+      <Canvas 
+        style={Object.assign({
+          zIndex: 10,
+          width: sizing.width,
+          height: sizing.height,
+          opacity: 1,
+          transition: 'opacity 0.5s ease'
         }, commonStyle)}
-
-export default ARShapok        gl={{
+        gl={{
           preserveDrawingBuffer: true // allow image capture
         }}
       >
         <ThreeGrabber sizing={sizing} />
-        <ShapkaFollower 
+        <ShapokFollower 
           onDetect={handleDetection} 
           onLose={handleLoseTracking}
         />
         
-        {/* Add some lighting for better 3D model visibility */}
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[10, 10, 5]} intensity={0.8} />
+        {/* Освещение */}
+        <ambientLight intensity={0.8} />
+        <directionalLight position={[5, 5, 5]} intensity={1.0} />
+        <directionalLight position={[-5, 5, 5]} intensity={0.5} />
+        <hemisphereLight skyColor="#ffffff" groundColor="#404040" intensity={0.4} />
       </Canvas>
 
       {/* Video */}
       <video 
-        style={cameraVideoStyle} 
+        style={{
+          ...cameraVideoStyle,
+          opacity: 1,
+          transition: 'opacity 0.5s ease'
+        }} 
         ref={cameraVideoRef}
         playsInline
         muted
@@ -599,57 +400,205 @@ export default ARShapok        gl={{
         height={512} 
       />
 
-      {/* Back button */}
-      <Link to="/" style={{
-        position: 'fixed',
-        top: '20px',
-        left: '20px',
-        zIndex: 30,
-        background: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        padding: '10px 15px',
-        borderRadius: '20px',
-        textDecoration: 'none',
-        fontSize: '14px'
-      }}>
-        ← Назад
-      </Link>
+      <BackButton />
 
       {/* Detection status overlay */}
-      <div style={{
-        position: 'fixed',
-        textAlign: 'center',
-        width: '100vw',
-        zIndex: 20,
-        top: '30vh',
-        lineHeight: '2em',
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        paddingTop: '0.5em',
-        paddingBottom: '0.5em',
-        opacity: (isFirstDetection) ? 1 : 0,
-        transition: 'opacity 1s',
-        color: 'white',
-        fontSize: '18px'
-      }}>
-        Наведите камеру на объект ШАПКА<br/>
-        для начала AR-взаимодействия
-      </div>
+      <DetectionStatus isVisible={isFirstDetection} characterName="Шапокляк" />
 
       {/* Detection indicator */}
-      {isDetecting && (
+      {isDetecting && <DetectionIndicator characterName="ШАПОКЛЯК" />}
+
+      {/* Photo button */}
+      {!capturedImage && (
+        <button
+          onClick={handleTakePhoto}
+          style={{
+            position: 'fixed',
+            bottom: '30px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 30,
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            border: '3px solid white',
+            background: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            transition: 'all 0.2s'
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(0.95)'
+            e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.2)'
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)'
+          }}
+        >
+          <div style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '50%',
+            border: '2px solid #333',
+            background: 'transparent'
+          }}></div>
+        </button>
+      )}
+
+      {/* Photo preview modal - Step 1: Save or Cancel */}
+      {capturedImage && !showSaveSuccess && (
         <div style={{
           position: 'fixed',
-          top: '20px',
-          right: '20px',
-          zIndex: 30,
-          background: 'rgba(0,255,0,0.8)',
-          color: 'white',
-          padding: '8px 12px',
-          borderRadius: '15px',
-          fontSize: '12px',
-          fontWeight: 'bold'
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.95)',
+          zIndex: 100,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
         }}>
-          ШАПКА ОБНАРУЖЕНА
+          <img 
+            src={capturedImage} 
+            alt="Captured" 
+            style={{
+              maxWidth: '90%',
+              maxHeight: '70vh',
+              borderRadius: '10px',
+              marginBottom: '20px'
+            }}
+          />
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <button
+              onClick={handleSavePhoto}
+              style={{
+                padding: '12px 30px',
+                background: '#5ccf54',
+                color: 'white',
+                border: 'none',
+                borderRadius: '25px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              💾 Сохранить
+            </button>
+            <button
+              onClick={() => setCapturedImage(null)}
+              style={{
+                padding: '12px 30px',
+                background: '#ff6bcc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '25px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              ✕ Отмена
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Success message / Step 2: Learn more */}
+      {showSaveSuccess && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.95)',
+          zIndex: 100,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}>
+           {/* Close button */}
+           <button
+            onClick={() => {
+              setCapturedImage(null);
+              setShowSaveSuccess(false);
+            }}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              // In the middle-top
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(40, 40, 40, 0.8)',
+              border: '2px solid white',
+              color: 'white',
+              fontSize: '24px',
+              cursor: 'pointer',
+              lineHeight: '1',
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%'
+            }}
+          >
+            &times;
+          </button>
+
+          <img 
+            src={capturedImage} 
+            alt="Saved" 
+            style={{
+              maxWidth: '100%',
+              maxHeight: 'calc(100vh - 180px)', // Adjust max height to leave space for button
+              borderRadius: '10px',
+              objectFit: 'contain'
+            }}
+          />
+
+          {/* Learn More Button */}
+          <Link
+            to="/shapok-info"
+            style={{
+              position: 'absolute',
+              bottom: '30px',
+              left: '5%',
+              right: '5%',
+              width: '90%',
+              padding: '18px',
+              background: '#726de3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '15px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              textAlign: 'center',
+              textDecoration: 'none',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+              transition: 'background-color 0.3s ease'
+            }}
+            onClick={() => { // Reset state when leaving the page
+              setCapturedImage(null);
+              setShowSaveSuccess(false);
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#5a55b8'}
+            onMouseLeave={(e) => e.currentTarget.style.background = '#726de3'}
+          >
+            Узнать больше о персонаже
+          </Link>
         </div>
       )}
     </div>

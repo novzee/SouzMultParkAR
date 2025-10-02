@@ -12,6 +12,11 @@ import mediaStreamAPIHelper from '../helpers/WebARRocksObject/helpers/WebARRocks
 import NN from '../assets/NN_GENA_0.json'
 
 import { Link } from 'react-router-dom'
+import { usePromo } from '../context/PromoContext'
+
+import BackButton from '../components/BackButton'
+import DetectionStatus from '../components/DetectionStatus'
+import DetectionIndicator from '../components/DetectionIndicator'
 
 let _threeFiber = null
 
@@ -28,6 +33,9 @@ const GenaFollower = ({ onDetect, onLose }) => {
       return
     }
 
+    // Скрываем объект по умолчанию
+    threeObject3D.visible = false
+
     console.log('Начинаем загрузку GLB модели...')
     
     // Load the GENA 3D model
@@ -43,24 +51,15 @@ const GenaFollower = ({ onDetect, onLose }) => {
           console.warn('GLB модель пустая или не содержит геометрии')
         }
         
-        model.scale.set(0.5, 0.5, 0.5) // Увеличил масштаб для лучшей видимости
-        model.rotation.y = -Math.PI / 2 // Поворот на 90 градусов влево (по оси Y)
-        model.position.set(0, 0, 0) // Убеждаемся что модель в центре
+        model.scale.set(0.5, 0.5, 0.5) 
+        model.rotation.y = -Math.PI / 2 
+        model.position.set(0, -1.0, 0) // Сделали модель ниже
         
         // Добавляем модель к объекту
-        if (threeObject3D.children[0]) {
-          threeObject3D.children[0].add(model)
-          console.log('Модель добавлена к сцене. Детей в контейнере:', threeObject3D.children[0].children.length)
-        } else {
-          console.error('Контейнер для модели не найден')
-        }
+        threeObject3D.add(model)
+        console.log('Модель добавлена к сцене. Детей в контейнере:', threeObject3D.children.length)
       },
-      (progress) => {
-        if (progress.total > 0) {
-          const percent = (progress.loaded / progress.total * 100).toFixed(1)
-          console.log(`Загрузка GLB: ${percent}%`)
-        }
-      },
+      undefined, // onProgress не используется
       (error) => {
         console.error('Ошибка загрузки GLB модели:', error)
         console.error('Проверьте, что файл /genasc.glb существует в папке public/')
@@ -72,6 +71,7 @@ const GenaFollower = ({ onDetect, onLose }) => {
 
     // set callbacks for detection and tracking:
     threeHelper.set_callback('GENA', 'ondetect', function(){
+      threeObject3D.visible = true
       if (onDetect){
         onDetect()
       }
@@ -79,6 +79,7 @@ const GenaFollower = ({ onDetect, onLose }) => {
     })
     
     threeHelper.set_callback('GENA', 'onloose', function(){
+      threeObject3D.visible = false
       console.log('GENA tracking lost')
       if (onLose){
         onLose()
@@ -89,16 +90,8 @@ const GenaFollower = ({ onDetect, onLose }) => {
   const s = 1.0 // scale multiplier - нормальный размер
   
   return (
-    <object3D ref={objRef}>
-      <object3D scale={[s, s, s]} position={[0.0, 0.0, 0.0]} rotation={[0, 0, 0]}>
-        {/* 3D модель GLB будет добавлена сюда через GLTFLoader */}
-        
-        {/* Временная отладочная геометрия - убрать после тестирования */}
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[0.1, 0.1, 0.1]} />
-          <meshBasicMaterial color="red" wireframe />
-        </mesh>
-      </object3D>
+    <object3D ref={objRef} scale={[s, s, s]} position={[0.0, -1.0, 0.0]} rotation={[0, 0, 0]}>
+      {/* 3D модель GLB будет добавлена сюда через GLTFLoader */}
     </object3D>
   )
 }
@@ -129,12 +122,16 @@ const compute_sizing = () => {
 }
 
 const ARGena = () => {
+  const { completePhotoTask } = usePromo();
+  
   // init state:
   const [sizing, setSizing] = useState(compute_sizing())
   const [isFirstDetection, setIsFirstDetection] = useState(true)
   const [isInitialized] = useState(true)
   const [isDetecting, setIsDetecting] = useState(false)
-
+  const [capturedImage, setCapturedImage] = useState(null)
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false)
+  
   // refs: 
   const canvasComputeRef = useRef()
   const cameraVideoRef = useRef()
@@ -195,46 +192,27 @@ const ARGena = () => {
   }, [sizing, _timerResize])
 
   useEffect(() => {
-    // Store refs in variables to avoid issues in cleanup
+    // init WEBAR.rocks.object:
     const videoElement = cameraVideoRef.current
-    const canvasElement = canvasComputeRef.current
-
-    // when videofeed is got, init WebAR.rocks.object through the threeHelper:
-    const onCameraVideoFeedGot = () => {
-      // Ensure canvas is properly initialized
-      if (!canvasElement) {
-        console.error('Canvas element not found!')
-        return
-      }
-
-      // Set canvas dimensions
-      canvasElement.width = 512
-      canvasElement.height = 512
-
-      try {
-        // Validate that NN data is loaded correctly
-        if (!NN || Object.keys(NN).length === 0) {
-          console.error('Neural Network model not loaded correctly')
-          return
-        }
-
-        console.log('Initializing WebAR.rocks.object with GENA detection...')
+    const canvasComputeElement = canvasComputeRef.current
+    if (isInitialized && videoElement && canvasComputeElement){
+      const onCameraVideoFeedGot = () => {
+        // handle resizing / orientation change:
+        window.addEventListener('resize', handle_resize)
+        window.addEventListener('orientationchange', handle_resize)
         
         threeHelper.init({
           video: videoElement,
-          ARCanvas: canvasElement,
+          ARCanvas: canvasComputeElement,
           NN,
           sizing,
           callbackReady: () => {
-            console.log('WebAR.rocks.object is ready for GENA detection!')
-            // handle resizing / orientation change:
-            window.addEventListener('resize', handle_resize)
-            window.addEventListener('orientationchange', handle_resize)
+            console.log('WebAR.rocks.object is ready :)')
+            do_resize()
           },
           callbackTrack: (detectState) => {
-            // Handle tracking state updates
-            if (detectState && detectState.detected) {
-              console.log('GENA tracking active:', detectState)
+            if (detectState.isDetected){
+              // console.log('GENA tracking state = ', detectState)
             }
           },
           loadNNOptions: _settings.loadNNOptions,
@@ -245,14 +223,9 @@ const ARGena = () => {
           scanSettings: _settings.scanSettings,
           stabilizerOptions: {n: 3}
         })
-      } catch (error) {
-        console.error('Error initializing WebAR.rocks.object:', error)
-        console.error('Error details:', error.message, error.stack)
       }
-    }
 
-    // get videoFeed:
-    if (videoElement) {
+      // get videoFeed:
       mediaStreamAPIHelper.get(videoElement, onCameraVideoFeedGot, (err) => {
         console.error('Cannot get video feed', err)
       }, {
@@ -264,24 +237,13 @@ const ARGena = () => {
     }
 
     return () => {
-      // Cleanup function
+      // clean up
       try {
         window.removeEventListener('resize', handle_resize)
         window.removeEventListener('orientationchange', handle_resize)
-        
-        // Clean up video stream
-        if (videoElement && videoElement.srcObject) {
-          const stream = videoElement.srcObject
-          const tracks = stream.getTracks()
-          tracks.forEach(track => track.stop())
-        }
-        
-        // Destroy WebAR.rocks instance
-        if (threeHelper && threeHelper.destroy) {
-          threeHelper.destroy()
-        }
-      } catch (error) {
-        console.error('Error during cleanup:', error)
+        threeHelper.destroy()
+      } catch(e){
+        console.log('ERROR in cleanup:', e)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -294,6 +256,80 @@ const ARGena = () => {
 
   const handleLoseTracking = () => {
     setIsDetecting(false)
+  }
+
+  // Функция для захвата фото
+  const handleTakePhoto = () => {
+    if (!_threeFiber || !_threeFiber.gl || !cameraVideoRef.current) return
+
+    const video = cameraVideoRef.current
+    const threeCanvas = _threeFiber.gl.domElement
+
+    // Создаем временный canvas с размерами видимой области
+    const tempCanvas = document.createElement('canvas')
+    const displayWidth = threeCanvas.clientWidth
+    const displayHeight = threeCanvas.clientHeight
+    tempCanvas.width = displayWidth
+    tempCanvas.height = displayHeight
+
+    const ctx = tempCanvas.getContext('2d')
+
+    // Рассчитываем 'object-fit: cover' для видео
+    const videoAspectRatio = video.videoWidth / video.videoHeight
+    const canvasAspectRatio = displayWidth / displayHeight
+    let renderWidth, renderHeight, x, y
+
+    if (videoAspectRatio > canvasAspectRatio) {
+      renderHeight = displayHeight
+      renderWidth = displayHeight * videoAspectRatio
+      x = (displayWidth - renderWidth) / 2
+      y = 0
+    } else {
+      renderWidth = displayWidth
+      renderHeight = displayWidth / videoAspectRatio
+      x = 0
+      y = (displayHeight - renderHeight) / 2
+    }
+
+    // 1. Рисуем видео фон с сохранением пропорций
+    ctx.drawImage(video, x, y, renderWidth, renderHeight)
+
+    // 2. Рисуем 3D сцену поверх
+    ctx.drawImage(threeCanvas, 0, 0, displayWidth, displayHeight)
+
+    // Получаем результат
+    const dataURL = tempCanvas.toDataURL('image/png')
+    setCapturedImage(dataURL)
+  }
+
+  // Функция для сохранения фото
+  const handleSavePhoto = () => {
+    if (!capturedImage) return
+
+    // Создаем имя файла с датой
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const seconds = String(now.getSeconds()).padStart(2, '0')
+    
+    const filename = `souzmultpark.ru-${day}.${month}.${year}-${hours}:${minutes}:${seconds}.png`
+
+    // Создаем ссылку для скачивания
+    const link = document.createElement('a')
+    link.href = capturedImage
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    // Вызываем функцию для обновления состояния
+    completePhotoTask();
+
+    // Показываем уведомление об успехе
+    setShowSaveSuccess(true)
   }
 
   const commonStyle = {
@@ -322,7 +358,9 @@ const ARGena = () => {
         style={Object.assign({
           zIndex: 10,
           width: sizing.width,
-          height: sizing.height
+          height: sizing.height,
+          opacity: 1,
+          transition: 'opacity 0.5s ease'
         }, commonStyle)}
         gl={{
           preserveDrawingBuffer: true // allow image capture
@@ -334,14 +372,20 @@ const ARGena = () => {
           onLose={handleLoseTracking}
         />
         
-        {/* Add some lighting for better 3D model visibility */}
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[10, 10, 5]} intensity={0.8} />
+        {/* Освещение */}
+        <ambientLight intensity={0.8} />
+        <directionalLight position={[5, 5, 5]} intensity={1.0} />
+        <directionalLight position={[-5, 5, 5]} intensity={0.5} />
+        <hemisphereLight skyColor="#ffffff" groundColor="#404040" intensity={0.4} />
       </Canvas>
 
       {/* Video */}
       <video 
-        style={cameraVideoStyle} 
+        style={{
+          ...cameraVideoStyle,
+          opacity: 1,
+          transition: 'opacity 0.5s ease'
+        }} 
         ref={cameraVideoRef}
         playsInline
         muted
@@ -355,57 +399,205 @@ const ARGena = () => {
         height={512} 
       />
 
-      {/* Back button */}
-      <Link to="/" style={{
-        position: 'fixed',
-        top: '20px',
-        left: '20px',
-        zIndex: 30,
-        background: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        padding: '10px 15px',
-        borderRadius: '20px',
-        textDecoration: 'none',
-        fontSize: '14px'
-      }}>
-        ← Назад
-      </Link>
+      <BackButton />
 
       {/* Detection status overlay */}
-      <div style={{
-        position: 'fixed',
-        textAlign: 'center',
-        width: '100vw',
-        zIndex: 20,
-        top: '30vh',
-        lineHeight: '2em',
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        paddingTop: '0.5em',
-        paddingBottom: '0.5em',
-        opacity: (isFirstDetection) ? 1 : 0,
-        transition: 'opacity 1s',
-        color: 'white',
-        fontSize: '18px'
-      }}>
-        Наведите камеру на объект GENA<br/>
-        для начала AR-взаимодействия
-      </div>
+      <DetectionStatus isVisible={isFirstDetection} characterName="Гену" />
 
       {/* Detection indicator */}
-      {isDetecting && (
+      {isDetecting && <DetectionIndicator characterName="ГЕНА" />}
+
+      {/* Photo button */}
+      {!capturedImage && (
+        <button
+          onClick={handleTakePhoto}
+          style={{
+            position: 'fixed',
+            bottom: '30px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 30,
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            border: '3px solid white',
+            background: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            transition: 'all 0.2s'
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(0.95)'
+            e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.2)'
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)'
+          }}
+        >
+          <div style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '50%',
+            border: '2px solid #333',
+            background: 'transparent'
+          }}></div>
+        </button>
+      )}
+
+      {/* Photo preview modal - Step 1: Save or Cancel */}
+      {capturedImage && !showSaveSuccess && (
         <div style={{
           position: 'fixed',
-          top: '20px',
-          right: '20px',
-          zIndex: 30,
-          background: 'rgba(0,255,0,0.8)',
-          color: 'white',
-          padding: '8px 12px',
-          borderRadius: '15px',
-          fontSize: '12px',
-          fontWeight: 'bold'
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.95)',
+          zIndex: 100,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
         }}>
-          GENA ОБНАРУЖЕНА
+          <img 
+            src={capturedImage} 
+            alt="Captured" 
+            style={{
+              maxWidth: '90%',
+              maxHeight: '70vh',
+              borderRadius: '10px',
+              marginBottom: '20px'
+            }}
+          />
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <button
+              onClick={handleSavePhoto}
+              style={{
+                padding: '12px 30px',
+                background: '#5ccf54',
+                color: 'white',
+                border: 'none',
+                borderRadius: '25px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              💾 Сохранить
+            </button>
+            <button
+              onClick={() => setCapturedImage(null)}
+              style={{
+                padding: '12px 30px',
+                background: '#ff6bcc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '25px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              ✕ Отмена
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Success message / Step 2: Learn more */}
+      {showSaveSuccess && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.95)',
+          zIndex: 100,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}>
+           {/* Close button */}
+           <button
+            onClick={() => {
+              setCapturedImage(null);
+              setShowSaveSuccess(false);
+            }}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              // In the middle-top
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(40, 40, 40, 0.8)',
+              border: '2px solid white',
+              color: 'white',
+              fontSize: '24px',
+              cursor: 'pointer',
+              lineHeight: '1',
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%'
+            }}
+          >
+            &times;
+          </button>
+
+          <img 
+            src={capturedImage} 
+            alt="Saved" 
+            style={{
+              maxWidth: '100%',
+              maxHeight: 'calc(100vh - 180px)', // Adjust max height to leave space for button
+              borderRadius: '10px',
+              objectFit: 'contain'
+            }}
+          />
+
+          {/* Learn More Button */}
+          <Link
+            to="/gena-info"
+            style={{
+              position: 'absolute',
+              bottom: '30px',
+              left: '5%',
+              right: '5%',
+              width: '90%',
+              padding: '18px',
+              background: '#726de3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '15px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              textAlign: 'center',
+              textDecoration: 'none',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+              transition: 'background-color 0.3s ease'
+            }}
+            onClick={() => { // Reset state when leaving the page
+              setCapturedImage(null);
+              setShowSaveSuccess(false);
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#5a55b8'}
+            onMouseLeave={(e) => e.currentTarget.style.background = '#726de3'}
+          >
+            Узнать больше о персонаже
+          </Link>
         </div>
       )}
     </div>
